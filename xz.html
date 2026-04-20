@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Universal Quiz Pro</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; color: white; touch-action: manipulation; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
+        .visible-section { animation: slideUp 0.4s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-huge { padding: 1.2rem; font-size: 1.4rem; font-weight: 800; border-radius: 20px; transition: all 0.2s; }
+        .btn-huge:active { transform: scale(0.96); opacity: 0.9; }
+        .hidden-section { display: none; }
+        input::placeholder { color: rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center justify-center">
+
+    <div id="app" class="w-full max-w-lg mx-auto">
+        
+        <div id="loading" class="text-center py-20">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mx-auto mb-6"></div>
+            <p class="text-xl font-bold opacity-50">Загрузка платформы...</p>
+        </div>
+
+        <div id="menu" class="hidden-section glass p-10 text-center">
+            <h1 class="text-4xl font-black mb-2 uppercase tracking-tight">Quiz <span class="text-indigo-400">Master</span></h1>
+            <p id="menu-subtitle" class="text-gray-400 mb-10 text-lg font-bold bg-white/5 inline-block px-4 py-1 rounded-full">Загрузка...</p>
+            <div class="flex flex-col gap-4">
+                <button id="btn-start" class="btn-huge bg-indigo-600 shadow-lg shadow-indigo-500/20">НАЧАТЬ ТЕСТ</button>
+                <button id="btn-create" class="btn-huge bg-white/5 border border-white/10">СОЗДАТЬ СВОЙ</button>
+            </div>
+        </div>
+
+        <div id="quiz" class="hidden-section w-full">
+            <div class="flex justify-between items-end mb-4 px-2">
+                <div id="timer" class="text-4xl font-black text-indigo-400">00:00</div>
+                <div id="progress-text" class="text-lg font-bold opacity-60 text-right">1/25</div>
+            </div>
+            <div class="glass p-8 mb-6">
+                <h2 id="q-text" class="text-3xl md:text-4xl font-bold text-center mb-10 leading-tight">Загрузка...</h2>
+                <input type="text" id="ans-input" placeholder="Ваш ответ..." class="w-full bg-white/5 border-2 border-white/10 p-5 rounded-2xl text-2xl text-center focus:border-indigo-500 outline-none transition-all mb-6">
+                <button id="btn-next" class="btn-huge w-full bg-indigo-500 shadow-xl shadow-indigo-500/30 uppercase">Ответить</button>
+            </div>
+        </div>
+
+        <div id="constructor" class="hidden-section glass p-6 w-full">
+            <h2 class="text-2xl font-bold mb-4">Настройка теста</h2>
+            
+            <div class="mb-4 bg-black/20 p-4 rounded-xl border border-white/5">
+                <label class="block text-sm text-indigo-300 mb-2 font-bold uppercase tracking-wider">Время на тест (в минутах):</label>
+                <input id="new-timer" type="number" value="10" min="1" class="w-full bg-white/5 p-3 rounded-lg text-xl font-bold outline-none border border-white/10 focus:border-indigo-500 text-center">
+            </div>
+
+            <div id="questions-list" class="space-y-2 mb-6 max-h-[200px] overflow-y-auto pr-2 text-sm opacity-80"></div>
+            
+            <div class="space-y-3 mb-6 bg-black/20 p-4 rounded-xl border border-white/5">
+                <label class="block text-sm text-indigo-300 mb-1 font-bold uppercase tracking-wider">Новый вопрос:</label>
+                <input id="new-q" type="text" placeholder="Сам вопрос" class="w-full bg-white/5 p-4 rounded-xl text-lg outline-none border border-white/10 focus:border-indigo-500">
+                <input id="new-a" type="text" placeholder="Правильный ответ" class="w-full bg-white/5 p-4 rounded-xl text-lg outline-none border border-white/10 focus:border-indigo-500">
+                <button id="btn-add-q" class="w-full bg-emerald-600 p-4 rounded-xl font-bold mt-2">ДОБАВИТЬ В СПИСОК</button>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="btn-gen-link" class="flex-1 bg-indigo-600 p-4 rounded-xl font-bold">ПОДЕЛИТЬСЯ</button>
+                <button id="btn-back" class="bg-white/10 p-4 rounded-xl font-bold">НАЗАД</button>
+            </div>
+            
+            <div id="share-area" class="mt-6 hidden p-4 bg-black/40 rounded-xl">
+                <p class="text-xs mb-2 text-indigo-300">Отправьте эту ссылку друзьям:</p>
+                <div class="flex gap-2">
+                    <input id="share-link" readonly class="w-full bg-black/50 border border-indigo-500/50 rounded-lg p-3 text-xs text-indigo-200 outline-none">
+                    <button id="btn-copy" class="bg-indigo-500 px-4 rounded-lg font-bold text-sm transition-colors hover:bg-indigo-400">Копировать</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results" class="hidden-section glass p-6 w-full">
+            <div class="text-center mb-8">
+                <h2 class="text-7xl font-black text-indigo-400 mb-2" id="res-score-perc">0%</h2>
+                <p class="text-xl opacity-70" id="res-score-text">0 из 0</p>
+            </div>
+            <div class="space-y-3" id="res-details"></div>
+            <button onclick="window.location.reload()" class="btn-huge w-full mt-8 bg-white/10">В МЕНЮ</button>
+        </div>
+    </div>
+
+    <script type="py">
+        import js
+        import json
+        import base64
+        import random
+        import asyncio
+        from pyodide.ffi import create_proxy
+
+        class App:
+            def __init__(self):
+                self.questions = []
+                self.user_answers = []
+                self.current_idx = 0
+                self.total_time = 600 # По умолчанию 10 минут
+                self.time_left = 600
+                self.timer_running = False
+                
+                self.load_data()
+                self.bind_events()
+                self.show_view("menu")
+                js.document.getElementById("loading").style.display = "none"
+
+            def load_data(self):
+                url_params = js.URLSearchParams.new(js.window.location.search)
+                data = url_params.get("q")
+                if data:
+                    try:
+                        decoded = base64.b64decode(data).decode('utf-8')
+                        parsed = json.loads(decoded)
+                        # Поддержка старых ссылок (где был просто список) и новых (где словарь)
+                        if isinstance(parsed, list):
+                            self.questions = parsed
+                            self.total_time = 600
+                        else:
+                            self.questions = parsed.get("q", [])
+                            self.total_time = parsed.get("t", 600)
+                    except: self.gen_math()
+                else: self.gen_math()
+                
+                # Обновляем информацию на главном экране
+                mins = self.total_time // 60
+                js.document.getElementById("menu-subtitle").innerHTML = f"Вопросов: {len(self.questions)} &nbsp;•&nbsp; Время: {mins} мин."
+
+            def gen_math(self):
+                self.questions = []
+                self.total_time = 600
+                for _ in range(25):
+                    a, b = random.randint(10, 50), random.randint(10, 50)
+                    self.questions.append({"q": f"{a} + {b}", "a": str(a + b)})
+
+            def show_view(self, vid):
+                for v in ["menu", "quiz", "constructor", "results"]:
+                    js.document.getElementById(v).classList.add("hidden-section")
+                    js.document.getElementById(v).classList.remove("visible-section")
+                js.document.getElementById(vid).classList.remove("hidden-section")
+                js.document.getElementById(vid).classList.add("visible-section")
+
+            def start_quiz(self, e):
+                self.current_idx = 0
+                self.user_answers = []
+                self.time_left = self.total_time # Устанавливаем таймер из настроек
+                self.timer_running = True
+                self.update_ui()
+                self.show_view("quiz")
+                asyncio.create_task(self.run_timer())
+
+            async def run_timer(self):
+                # Сразу отображаем стартовое время
+                m, s = divmod(self.time_left, 60)
+                js.document.getElementById("timer").innerHTML = f"{m:02d}:{s:02d}"
+                
+                while self.time_left > 0 and self.timer_running:
+                    await asyncio.sleep(1)
+                    self.time_left -= 1
+                    m, s = divmod(self.time_left, 60)
+                    js.document.getElementById("timer").innerHTML = f"{m:02d}:{s:02d}"
+                    
+                    if self.time_left <= 60:
+                        js.document.getElementById("timer").classList.add("text-rose-400")
+                        js.document.getElementById("timer").classList.remove("text-indigo-400")
+
+                if self.time_left <= 0 and self.timer_running: self.finish()
+
+            def update_ui(self):
+                if self.current_idx < len(self.questions):
+                    q = self.questions[self.current_idx]
+                    js.document.getElementById("q-text").innerHTML = str(q["q"])
+                    js.document.getElementById("progress-text").innerHTML = f"{self.current_idx + 1}/{len(self.questions)}"
+                    js.document.getElementById("ans-input").value = ""
+                    js.document.getElementById("ans-input").focus()
+                else: self.finish()
+
+            def next_q(self, e):
+                val = js.document.getElementById("ans-input").value.strip()
+                self.user_answers.append(val)
+                self.current_idx += 1
+                self.update_ui()
+
+            def finish(self):
+                self.timer_running = False
+                correct = 0
+                cont = js.document.getElementById("res-details")
+                cont.innerHTML = ""
+                for i, q in enumerate(self.questions):
+                    u = self.user_answers[i] if i < len(self.user_answers) else ""
+                    is_ok = str(u).lower() == str(q["a"]).lower()
+                    if is_ok: correct += 1
+                    bg = "bg-emerald-500/10" if is_ok else "bg-rose-500/10"
+                    brd = "border-emerald-500/50" if is_ok else "border-rose-500/50"
+                    cont.innerHTML += f"""<div class="p-4 rounded-xl border {bg} {brd} flex justify-between items-center"><div class="flex-1"><p class="font-bold">{q['q']}</p><p class="text-xs opacity-60">Ваш: {u if u else "—"}</p></div><p class="font-black {'text-emerald-400' if is_ok else 'text-rose-400'}">{q['a']}</p></div>"""
+                
+                p = int((correct / len(self.questions)) * 100) if self.questions else 0
+                js.document.getElementById("res-score-perc").innerHTML = f"{p}%"
+                js.document.getElementById("res-score-text").innerHTML = f"Правильно: {correct} из {len(self.questions)}"
+                self.show_view("results")
+
+            def add_q(self, e):
+                q = js.document.getElementById("new-q").value
+                a = js.document.getElementById("new-a").value
+                if q and a:
+                    if len(self.questions) == 25 and "+" in self.questions[0]['q']: self.questions = []
+                    self.questions.append({"q": q, "a": str(a).strip()})
+                    self.render_list()
+                    js.document.getElementById("new-q").value = ""
+                    js.document.getElementById("new-a").value = ""
+
+            def render_list(self):
+                c = js.document.getElementById("questions-list")
+                c.innerHTML = "".join([f"<div class='bg-white/5 p-2 rounded mb-1'>{i+1}. {q['q']}</div>" for i,q in enumerate(self.questions)])
+
+            def gen_link(self, e):
+                # Берем время из инпута, если там пусто или ошибка — ставим 10 минут
+                t_val = js.document.getElementById("new-timer").value
+                try: t_mins = max(1, int(t_val))
+                except: t_mins = 10
+
+                payload = {
+                    "t": t_mins * 60,  # сохраняем в секундах
+                    "q": self.questions
+                }
+                
+                d = json.dumps(payload)
+                enc = base64.b64encode(d.encode()).decode()
+                link = f"{js.window.location.origin}{js.window.location.pathname}?q={enc}"
+                
+                js.document.getElementById("share-link").value = link
+                js.document.getElementById("share-area").classList.remove("hidden")
+
+            def copy_link(self, e):
+                link = js.document.getElementById("share-link").value
+                js.navigator.clipboard.writeText(link)
+                btn = js.document.getElementById("btn-copy")
+                btn.innerHTML = "Готово!"
+                btn.classList.add("bg-emerald-500")
+                async def reset_btn():
+                    await asyncio.sleep(2)
+                    btn.innerHTML = "Копировать"
+                    btn.classList.remove("bg-emerald-500")
+                asyncio.create_task(reset_btn())
+
+            def bind_events(self):
+                js.document.getElementById("btn-start").onclick = create_proxy(self.start_quiz)
+                js.document.getElementById("btn-next").onclick = create_proxy(self.next_q)
+                js.document.getElementById("btn-create").onclick = create_proxy(lambda e: self.show_view("constructor"))
+                js.document.getElementById("btn-back").onclick = create_proxy(lambda e: self.show_view("menu"))
+                js.document.getElementById("btn-add-q").onclick = create_proxy(self.add_q)
+                js.document.getElementById("btn-gen-link").onclick = create_proxy(self.gen_link)
+                js.document.getElementById("btn-copy").onclick = create_proxy(self.copy_link)
+
+        app = App()
+    </script>
+</body>
+</html>
